@@ -55,6 +55,24 @@ impl FrameDecoder {
         let mut adu_buf = buf.split_to(adu_len);
         let crc_buf = buf.split_to(CRC_BYTE_COUNT);
 
+        // Log raw frame before validation (including CRC)
+        #[cfg(feature = "data_hook")]
+        {
+            let mut full_frame = Vec::with_capacity(adu_len + CRC_BYTE_COUNT);
+            full_frame.extend_from_slice(&adu_buf);
+            full_frame.extend_from_slice(&crc_buf);
+            let crc_val = u16::from_be_bytes([crc_buf[0], crc_buf[1]]);
+            let slave_id_peek = adu_buf[0];
+            data_hook!(
+                "RTU",
+                "RTU received {} bytes (pre-validate): slave_id={}, frame_data={:02X?}, crc=0x{:04X}",
+                adu_len + CRC_BYTE_COUNT,
+                slave_id_peek,
+                full_frame,
+                crc_val
+            );
+        }
+
         // Read trailing CRC and verify ADU
         let crc_result = Cursor::new(&crc_buf)
             .read_u16::<BigEndian>()
@@ -83,13 +101,22 @@ impl FrameDecoder {
         let pdu_data = adu_buf.freeze();
 
         #[cfg(feature = "data_hook")]
-        data_hook!(
-            "RTU",
-            "RTU received {} bytes: slave_id={}, pdu_data={:02X?}",
-            1 + pdu_len + 2,
-            slave_id,
-            pdu_data
-        );
+        {
+            // Reconstruct full frame for logging (including CRC)
+            let mut full_frame = Vec::with_capacity(1 + pdu_data.len() + 2);
+            full_frame.push(slave_id);
+            full_frame.extend_from_slice(&pdu_data);
+            full_frame.extend_from_slice(&crc_buf);
+            let crc_val = u16::from_be_bytes([crc_buf[0], crc_buf[1]]);
+            data_hook!(
+                "RTU",
+                "RTU received {} bytes: slave_id={}, frame_data={:02X?}, crc=0x{:04X}",
+                1 + pdu_len + 2,
+                slave_id,
+                full_frame,
+                crc_val
+            );
+        }
 
         Ok(Some((slave_id, pdu_data)))
     }
@@ -361,10 +388,11 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
             let frame_len = buf.len() - buf_offset;
             data_hook!(
                 "RTU",
-                "RTU sending {} bytes: slave_id={}, frame_data={:02X?}",
+                "RTU sending {} bytes: slave_id={}, frame_data={:02X?}, crc=0x{:04X}",
                 frame_len,
                 hdr.slave_id,
-                &buf[buf_offset..]
+                &buf[buf_offset..],
+                crc
             );
         }
 
@@ -394,10 +422,11 @@ impl Encoder<ResponseAdu> for ServerCodec {
             let frame_len = buf.len() - buf_offset;
             data_hook!(
                 "RTU",
-                "RTU sending {} bytes: slave_id={}, frame_data={:02X?}",
+                "RTU sending {} bytes: slave_id={}, frame_data={:02X?}, crc=0x{:04X}",
                 frame_len,
                 hdr.slave_id,
-                &buf[buf_offset..]
+                &buf[buf_offset..],
+                crc
             );
         }
 

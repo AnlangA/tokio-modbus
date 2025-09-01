@@ -67,6 +67,25 @@ impl Decoder for AduDecoder {
             return Ok(None);
         }
 
+        // Log raw frame before validation (no CRC in TCP)
+        #[cfg(feature = "data_hook")]
+        {
+            let total_len = HEADER_LEN + pdu_len;
+            let mut full_frame = Vec::with_capacity(total_len);
+            full_frame.extend_from_slice(&buf[..HEADER_LEN]);
+            full_frame.extend_from_slice(&buf[HEADER_LEN..HEADER_LEN + pdu_len]);
+            let transaction_id = BigEndian::read_u16(&buf[0..2]);
+            let unit_id = buf[6];
+            let header_preview = Header { transaction_id, unit_id };
+            data_hook!(
+                "TCP",
+                "TCP received {} bytes (pre-validate): header={:?}, frame_data={:02X?}",
+                total_len,
+                header_preview,
+                full_frame
+            );
+        }
+
         let header_data = buf.split_to(HEADER_LEN);
 
         debug_assert!(HEADER_LEN >= 4);
@@ -94,13 +113,24 @@ impl Decoder for AduDecoder {
         let pdu_data = buf.split_to(pdu_len).freeze();
 
         #[cfg(feature = "data_hook")]
-        data_hook!(
-            "TCP",
-            "TCP received {} bytes: header={:?}, pdu_data={:02X?}",
-            HEADER_LEN + pdu_len,
-            header,
-            pdu_data
-        );
+        {
+            // Reconstruct full frame for logging
+            let mut full_frame = Vec::with_capacity(HEADER_LEN + pdu_len);
+            // TCP frame: transaction_id(2) + protocol_id(2) + length(2) + unit_id(1) + pdu_data
+            full_frame.extend_from_slice(&header.transaction_id.to_be_bytes());
+            full_frame.extend_from_slice(&PROTOCOL_ID.to_be_bytes());
+            full_frame.extend_from_slice(&((pdu_len + 1) as u16).to_be_bytes());
+            full_frame.push(header.unit_id);
+            full_frame.extend_from_slice(&pdu_data);
+
+            data_hook!(
+                "TCP",
+                "TCP received {} bytes: header={:?}, frame_data={:02X?}",
+                HEADER_LEN + pdu_len,
+                header,
+                full_frame
+            );
+        }
 
         Ok(Some((header, pdu_data)))
     }
@@ -182,6 +212,7 @@ impl Encoder<ResponseAdu> for ServerCodec {
         buf.put_u16(PROTOCOL_ID);
         buf.put_u16(u16_len(response_result_pdu_size + 1));
         buf.put_u8(hdr.unit_id);
+        #[cfg(feature = "data_hook")]
         let pdu_start = buf.len();
         super::encode_response_result_pdu(buf, &pdu_result);
 
