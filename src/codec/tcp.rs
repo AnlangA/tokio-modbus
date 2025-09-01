@@ -77,12 +77,18 @@ impl Decoder for AduDecoder {
             let transaction_id = BigEndian::read_u16(&buf[0..2]);
             let unit_id = buf[6];
             let header_preview = Header { transaction_id, unit_id };
+            let frame_hex = full_frame
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
             data_hook!(
                 "TCP",
-                "TCP received {} bytes (pre-validate): header={:?}, frame_data={:02X?}",
+                "TCP received {} bytes (pre-validate): transaction_id=0x{:04X}, unit_id=0x{:02X}, frame_data=[{}]",
                 total_len,
-                header_preview,
-                full_frame
+                header_preview.transaction_id,
+                header_preview.unit_id,
+                frame_hex
             );
         }
 
@@ -165,12 +171,18 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
         #[cfg(feature = "data_hook")]
         {
             let frame_len = buf.len();
+            let frame_hex = (&buf[pdu_start - 7..])
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
             data_hook!(
                 "TCP",
-                "TCP sending {} bytes: header={:?}, frame_data={:02X?}",
+                "TCP sending {} bytes: transaction_id=0x{:04X}, unit_id=0x{:02X}, frame_data=[{}]",
                 frame_len,
-                hdr,
-                &buf[pdu_start - 7..]
+                hdr.transaction_id,
+                hdr.unit_id,
+                frame_hex
             );
         }
         Ok(())
@@ -199,12 +211,18 @@ impl Encoder<ResponseAdu> for ServerCodec {
         #[cfg(feature = "data_hook")]
         {
             let frame_len = buf.len();
+            let frame_hex = (&buf[pdu_start - 7..])
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
             data_hook!(
                 "TCP",
-                "TCP sending {} bytes: header={:?}, frame_data={:02X?}",
+                "TCP sending {} bytes: transaction_id=0x{:04X}, unit_id=0x{:02X}, frame_data=[{}]",
                 frame_len,
-                hdr,
-                &buf[pdu_start - 7..]
+                hdr.transaction_id,
+                hdr.unit_id,
+                frame_hex
             );
         }
         Ok(())

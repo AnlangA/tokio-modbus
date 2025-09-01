@@ -63,12 +63,17 @@ impl FrameDecoder {
             full_frame.extend_from_slice(&crc_buf);
             let crc_val = u16::from_be_bytes([crc_buf[0], crc_buf[1]]);
             let slave_id_peek = adu_buf[0];
+            let frame_hex = full_frame
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
             data_hook!(
                 "RTU",
-                "RTU received {} bytes (pre-validate): slave_id={}, frame_data={:02X?}, crc=0x{:04X}",
+                "RTU received {} bytes (pre-validate): unit_id=0x{:02X}, frame_data=[{}], crc=0x{:04X}",
                 adu_len + CRC_BYTE_COUNT,
                 slave_id_peek,
-                full_frame,
+                frame_hex,
                 crc_val
             );
         }
@@ -368,12 +373,17 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
         #[cfg(feature = "data_hook")]
         {
             let frame_len = buf.len() - buf_offset;
+            let frame_hex = (&buf[buf_offset..])
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
             data_hook!(
                 "RTU",
-                "RTU sending {} bytes: slave_id={}, frame_data={:02X?}, crc=0x{:04X}",
+                "RTU sending {} bytes: unit_id=0x{:02X}, frame_data=[{}], crc=0x{:04X}",
                 frame_len,
                 hdr.slave_id,
-                &buf[buf_offset..],
+                frame_hex,
                 crc
             );
         }
@@ -402,12 +412,17 @@ impl Encoder<ResponseAdu> for ServerCodec {
         #[cfg(feature = "data_hook")]
         {
             let frame_len = buf.len() - buf_offset;
+            let frame_hex = (&buf[buf_offset..])
+                .iter()
+                .map(|b| format!("{:02X}", b))
+                .collect::<Vec<_>>()
+                .join(" ");
             data_hook!(
                 "RTU",
-                "RTU sending {} bytes: slave_id={}, frame_data={:02X?}, crc=0x{:04X}",
+                "RTU sending {} bytes: unit_id=0x{:02X}, frame_data=[{}], crc=0x{:04X}",
                 frame_len,
                 hdr.slave_id,
-                &buf[buf_offset..],
+                frame_hex,
                 crc
             );
         }
