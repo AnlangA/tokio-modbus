@@ -100,24 +100,6 @@ impl FrameDecoder {
         let slave_id = adu_buf.split_to(1)[0];
         let pdu_data = adu_buf.freeze();
 
-        #[cfg(feature = "data_hook")]
-        {
-            // Reconstruct full frame for logging (including CRC)
-            let mut full_frame = Vec::with_capacity(1 + pdu_data.len() + 2);
-            full_frame.push(slave_id);
-            full_frame.extend_from_slice(&pdu_data);
-            full_frame.extend_from_slice(&crc_buf);
-            let crc_val = u16::from_be_bytes([crc_buf[0], crc_buf[1]]);
-            data_hook!(
-                "RTU",
-                "RTU received {} bytes: slave_id={}, frame_data={:02X?}, crc=0x{:04X}",
-                1 + pdu_len + 2,
-                slave_id,
-                full_frame,
-                crc_val
-            );
-        }
-
         Ok(Some((slave_id, pdu_data)))
     }
 

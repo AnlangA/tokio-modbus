@@ -112,26 +112,6 @@ impl Decoder for AduDecoder {
 
         let pdu_data = buf.split_to(pdu_len).freeze();
 
-        #[cfg(feature = "data_hook")]
-        {
-            // Reconstruct full frame for logging
-            let mut full_frame = Vec::with_capacity(HEADER_LEN + pdu_len);
-            // TCP frame: transaction_id(2) + protocol_id(2) + length(2) + unit_id(1) + pdu_data
-            full_frame.extend_from_slice(&header.transaction_id.to_be_bytes());
-            full_frame.extend_from_slice(&PROTOCOL_ID.to_be_bytes());
-            full_frame.extend_from_slice(&((pdu_len + 1) as u16).to_be_bytes());
-            full_frame.push(header.unit_id);
-            full_frame.extend_from_slice(&pdu_data);
-
-            data_hook!(
-                "TCP",
-                "TCP received {} bytes: header={:?}, frame_data={:02X?}",
-                HEADER_LEN + pdu_len,
-                header,
-                full_frame
-            );
-        }
-
         Ok(Some((header, pdu_data)))
     }
 }
