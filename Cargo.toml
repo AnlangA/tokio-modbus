@@ -35,6 +35,7 @@ tokio = { version = "1.35.1", default-features = false, features = ["io-util"] }
 # Disable default-features to exclude unused dependency on libudev
 tokio-serial = { version = "5.4.4", optional = true, default-features = false }
 tokio-util = { version = "0.7.10", optional = true, default-features = false, features = ["codec"] }
+data_hook = { version = "0.1.0", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0.86"
@@ -65,6 +66,7 @@ rtu-over-tcp-server = ["rtu", "tcp-server"]
 # The following features are internal and must not be used in dependencies.
 sync = ["dep:futures-core", "futures-util/sink", "tokio/time", "tokio/rt"]
 server = []
+data_hook = []
 
 [badges]
 maintenance = { status = "actively-developed" }

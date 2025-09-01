@@ -13,6 +13,9 @@ use crate::{
     slave::SlaveId,
 };
 
+#[cfg(feature = "data_hook")]
+use data_hook::data_hook;
+
 use super::{encode_request_pdu, request_pdu_size, RequestPdu};
 
 // [Modbus over Serial Line Specification and Implementation Guide V1.02](http://modbus.org/docs/Modbus_over_serial_line_V1_02.pdf), page 13
@@ -78,6 +81,15 @@ impl FrameDecoder {
         }
         let slave_id = adu_buf.split_to(1)[0];
         let pdu_data = adu_buf.freeze();
+
+        #[cfg(feature = "data_hook")]
+        data_hook!(
+            "RTU",
+            "RTU received {} bytes: slave_id={}, pdu_data={:02X?}",
+            1 + pdu_len + 2,
+            slave_id,
+            pdu_data
+        );
 
         Ok(Some((slave_id, pdu_data)))
     }
@@ -343,6 +355,19 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
         encode_request_pdu(buf, &request);
         let crc = calc_crc(&buf[buf_offset..]);
         buf.put_u16(crc);
+
+        #[cfg(feature = "data_hook")]
+        {
+            let frame_len = buf.len() - buf_offset;
+            data_hook!(
+                "RTU",
+                "RTU sending {} bytes: slave_id={}, frame_data={:02X?}",
+                frame_len,
+                hdr.slave_id,
+                &buf[buf_offset..]
+            );
+        }
+
         Ok(())
     }
 }
@@ -363,6 +388,19 @@ impl Encoder<ResponseAdu> for ServerCodec {
         super::encode_response_result_pdu(buf, &pdu_res);
         let crc = calc_crc(&buf[buf_offset..]);
         buf.put_u16(crc);
+
+        #[cfg(feature = "data_hook")]
+        {
+            let frame_len = buf.len() - buf_offset;
+            data_hook!(
+                "RTU",
+                "RTU sending {} bytes: slave_id={}, frame_data={:02X?}",
+                frame_len,
+                hdr.slave_id,
+                &buf[buf_offset..]
+            );
+        }
+
         Ok(())
     }
 }

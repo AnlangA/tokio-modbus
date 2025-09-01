@@ -11,6 +11,9 @@ use crate::{
     frame::tcp::*,
 };
 
+#[cfg(feature = "data_hook")]
+use data_hook::data_hook;
+
 use super::*;
 
 const HEADER_LEN: usize = 7;
@@ -90,6 +93,15 @@ impl Decoder for AduDecoder {
 
         let pdu_data = buf.split_to(pdu_len).freeze();
 
+        #[cfg(feature = "data_hook")]
+        data_hook!(
+            "TCP",
+            "TCP received {} bytes: header={:?}, pdu_data={:02X?}",
+            HEADER_LEN + pdu_len,
+            header,
+            pdu_data
+        );
+
         Ok(Some((header, pdu_data)))
     }
 }
@@ -137,7 +149,20 @@ impl<'a> Encoder<RequestAdu<'a>> for ClientCodec {
         buf.put_u16(PROTOCOL_ID);
         buf.put_u16(u16_len(request_pdu_size + 1));
         buf.put_u8(hdr.unit_id);
+        let pdu_start = buf.len();
         encode_request_pdu(buf, &request);
+
+        #[cfg(feature = "data_hook")]
+        {
+            let frame_len = buf.len();
+            data_hook!(
+                "TCP",
+                "TCP sending {} bytes: header={:?}, frame_data={:02X?}",
+                frame_len,
+                hdr,
+                &buf[pdu_start - 7..]
+            );
+        }
         Ok(())
     }
 }
@@ -157,7 +182,20 @@ impl Encoder<ResponseAdu> for ServerCodec {
         buf.put_u16(PROTOCOL_ID);
         buf.put_u16(u16_len(response_result_pdu_size + 1));
         buf.put_u8(hdr.unit_id);
+        let pdu_start = buf.len();
         super::encode_response_result_pdu(buf, &pdu_result);
+
+        #[cfg(feature = "data_hook")]
+        {
+            let frame_len = buf.len();
+            data_hook!(
+                "TCP",
+                "TCP sending {} bytes: header={:?}, frame_data={:02X?}",
+                frame_len,
+                hdr,
+                &buf[pdu_start - 7..]
+            );
+        }
         Ok(())
     }
 }
