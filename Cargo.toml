@@ -66,7 +66,7 @@ rtu-over-tcp-server = ["rtu", "tcp-server"]
 # The following features are internal and must not be used in dependencies.
 sync = ["dep:futures-core", "futures-util/sink", "tokio/time", "tokio/rt"]
 server = []
-data_hook = []
+data_hook = ["dep:data_hook"]
 
 [badges]
 maintenance = { status = "actively-developed" }
