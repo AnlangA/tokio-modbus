@@ -70,7 +70,7 @@ impl FrameDecoder {
                 .join(" ");
             data_hook!(
                 "RTU",
-                "RTU received {} bytes (pre-validate): unit_id=0x{:02X}, frame_data=[{}], crc=0x{:04X}",
+                "RTU received {} bytes: unit_id=0x{:02X}, frame_data=[{}], crc=0x{:04X}",
                 adu_len + CRC_BYTE_COUNT,
                 slave_id_peek,
                 frame_hex,

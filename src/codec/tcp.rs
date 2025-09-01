@@ -84,7 +84,7 @@ impl Decoder for AduDecoder {
                 .join(" ");
             data_hook!(
                 "TCP",
-                "TCP received {} bytes (pre-validate): transaction_id=0x{:04X}, unit_id=0x{:02X}, frame_data=[{}]",
+                "TCP received {} bytes: transaction_id=0x{:04X}, unit_id=0x{:02X}, frame_data=[{}]",
                 total_len,
                 header_preview.transaction_id,
                 header_preview.unit_id,
